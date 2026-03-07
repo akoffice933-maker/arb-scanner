@@ -890,6 +890,9 @@ histogram_quantile(0.95, rate(arb_scanner_profit_usd_bucket[1h]))
 📊 Scans: 30, Duration: 60s, Avg scan time: 485.23ms
 ```
 
+![Scanner Logs](docs/images/logs-example.png)
+*Пример: Лог сканера с найденными арбитражными возможностями*
+
 ### Telegram алерт
 
 ```
@@ -917,6 +920,24 @@ histogram_quantile(0.95, rate(arb_scanner_profit_usd_bucket[1h]))
 ⏱️ Lifetime: 150ms
 💧 Liquidity: $100,000
 ```
+
+![Telegram Alert](docs/images/telegram-alert-example.png)
+*Пример: Telegram уведомление о найденной возможности*
+
+### Grafana Дашборд
+
+![Grafana Dashboard](docs/images/grafana-dashboard.png)
+*Пример: Grafana дашборд с метриками сканера*
+
+**Ключевые панели:**
+- **Total Opportunities** — общее количество найденных возможностей
+- **Scan Rate** — частота сканирования (сканов/сек)
+- **RPC Latency** — задержка RPC нод в реальном времени
+- **Spread Distribution** — распределение спредов (гистограмма)
+- **Profit Distribution** — распределение прибыли
+- **Opportunities by Token** — возможности по токенам
+
+> 📌 **Совет:** Импортируйте `dashboard/grafana.json` для развёртывания дашборда.
 
 ---
 

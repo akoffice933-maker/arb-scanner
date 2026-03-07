@@ -1,0 +1,36 @@
+# Images Directory
+
+This directory contains screenshots and images for documentation.
+
+## Required Images
+
+Add the following images to this directory:
+
+1. **logs-example.png** — Scanner logs with arbitrage opportunities
+2. **telegram-alert-example.png** — Telegram notification screenshot
+3. **grafana-dashboard.png** — Grafana dashboard with metrics
+
+## How to Add Images
+
+### Option 1: Copy files locally
+```bash
+cp /path/to/your/image.jpg docs/images/
+```
+
+### Option 2: Upload via GitHub
+1. Go to https://github.com/akoffice933-maker/arb-scanner/tree/main/docs/images
+2. Click "Add file" → "Upload files"
+3. Drag and drop your images
+4. Commit changes
+
+### Option 3: Use GitHub Releases
+1. Create a release
+2. Upload images as assets
+3. Use direct URLs in README
+
+## Image Guidelines
+
+- Format: PNG or JPEG
+- Max size: 1 MB per image
+- Resolution: 1920x1080 or lower
+- Descriptive filenames

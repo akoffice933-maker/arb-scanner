@@ -28,9 +28,7 @@ class Database:
             )
 
             # Создаём фабрику сессий
-            self.async_session = async_sessionmaker(
-                self.engine, class_=AsyncSession, expire_on_commit=False
-            )
+            self.async_session = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
 
             # Создаём таблицы (в production лучше использовать миграции Alembic)
             async with self.engine.begin() as conn:
@@ -57,9 +55,7 @@ class Database:
         """Включение расширения TimescaleDB"""
         try:
             async with self.async_session() as session:
-                await session.execute(
-                    "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"
-                )
+                await session.execute("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE")
                 await session.commit()
 
                 # Преобразуем scan_metrics в hypertable
@@ -172,9 +168,7 @@ class Database:
         except Exception as e:
             print(f"❌ Failed to save RPC status: {e}")
 
-    async def get_recent_opportunities(
-        self, limit: int = 100, network: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    async def get_recent_opportunities(self, limit: int = 100, network: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Получение последних арбитражных возможностей
 
@@ -190,11 +184,7 @@ class Database:
 
         try:
             async with self.async_session() as session:
-                query = (
-                    select(ArbitrageOpportunity)
-                    .order_by(ArbitrageOpportunity.timestamp.desc())
-                    .limit(limit)
-                )
+                query = select(ArbitrageOpportunity).order_by(ArbitrageOpportunity.timestamp.desc()).limit(limit)
 
                 if network:
                     query = query.where(ArbitrageOpportunity.network == network)
@@ -225,23 +215,21 @@ class Database:
                 since = datetime.utcnow() - timedelta(hours=hours)
 
                 # Общее количество возможностей
-                total_query = select(func.count(ArbitrageOpportunity.id)).where(
-                    ArbitrageOpportunity.timestamp >= since
-                )
+                total_query = select(func.count(ArbitrageOpportunity.id)).where(ArbitrageOpportunity.timestamp >= since)
                 total_result = await session.execute(total_query)
                 total = total_result.scalar()
 
                 # Средняя прибыль
-                avg_profit_query = select(
-                    func.avg(ArbitrageOpportunity.estimated_profit_usd)
-                ).where(ArbitrageOpportunity.timestamp >= since)
+                avg_profit_query = select(func.avg(ArbitrageOpportunity.estimated_profit_usd)).where(
+                    ArbitrageOpportunity.timestamp >= since
+                )
                 avg_profit_result = await session.execute(avg_profit_query)
                 avg_profit = avg_profit_result.scalar() or 0
 
                 # Максимальный спред
-                max_spread_query = select(
-                    func.max(ArbitrageOpportunity.spread_net_percent)
-                ).where(ArbitrageOpportunity.timestamp >= since)
+                max_spread_query = select(func.max(ArbitrageOpportunity.spread_net_percent)).where(
+                    ArbitrageOpportunity.timestamp >= since
+                )
                 max_spread_result = await session.execute(max_spread_query)
                 max_spread = max_spread_result.scalar() or 0
 
@@ -273,9 +261,7 @@ class Database:
                 # Удаляем старые возможности
                 from sqlalchemy import delete
 
-                delete_query = delete(ArbitrageOpportunity).where(
-                    ArbitrageOpportunity.timestamp < since
-                )
+                delete_query = delete(ArbitrageOpportunity).where(ArbitrageOpportunity.timestamp < since)
                 await session.execute(delete_query)
 
                 # Удаляем старые метрики

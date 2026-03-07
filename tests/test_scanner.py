@@ -33,9 +33,7 @@ class TestSpreadCalculator:
             "liquidity_usd": 100000,
         }
 
-        opportunity = self.calculator.calculate_spread(
-            buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000
-        )
+        opportunity = self.calculator.calculate_spread(buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000)
 
         assert opportunity is not None
         assert opportunity.spread_gross_percent > 0
@@ -61,9 +59,7 @@ class TestSpreadCalculator:
             "liquidity_usd": 100000,
         }
 
-        opportunity = self.calculator.calculate_spread(
-            buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000
-        )
+        opportunity = self.calculator.calculate_spread(buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000)
 
         assert opportunity is None
 
@@ -87,9 +83,7 @@ class TestSpreadCalculator:
             "liquidity_usd": 100000,
         }
 
-        opportunity = self.calculator.calculate_spread(
-            buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000
-        )
+        opportunity = self.calculator.calculate_spread(buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000)
 
         assert opportunity is None
 
@@ -255,9 +249,7 @@ class TestIntegration:
         }
 
         # Рассчитываем спред
-        opportunity = calculator.calculate_spread(
-            buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000
-        )
+        opportunity = calculator.calculate_spread(buy_pool=buy_pool, sell_pool=sell_pool, trade_amount_usd=10000)
 
         assert opportunity is not None
         assert opportunity.token_symbol == "SOL"

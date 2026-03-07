@@ -70,9 +70,7 @@ class TelegramAlerter:
         Args:
             opportunity: SpreadOpportunity
         """
-        timestamp = datetime.fromtimestamp(opportunity.timestamp).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
+        timestamp = datetime.fromtimestamp(opportunity.timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
         text = (
             f"🚀 <b>Arbitrage Opportunity Detected!</b>\n\n"
@@ -163,10 +161,6 @@ class TelegramAlerter:
         """Отправка уведомления об остановке сканера"""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        text = (
-            f"🛑 <b>Arbitrage Scanner Stopped</b>\n\n"
-            f"⏰ <b>Time:</b> {timestamp}\n\n"
-            f"Scanner has been shut down."
-        )
+        text = f"🛑 <b>Arbitrage Scanner Stopped</b>\n\n" f"⏰ <b>Time:</b> {timestamp}\n\n" f"Scanner has been shut down."
 
         await self._send_message(text)

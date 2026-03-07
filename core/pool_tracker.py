@@ -81,9 +81,7 @@ class PoolTracker:
     def __init__(self, network: str = "solana"):
         self.network = network
         self.pools: Dict[str, PoolInfo] = {}
-        self.pool_configs = (
-            self.SOLANA_POOLS if network == "solana" else self.BASE_POOLS
-        )
+        self.pool_configs = self.SOLANA_POOLS if network == "solana" else self.BASE_POOLS
         self._update_task: Optional[asyncio.Task] = None
 
     async def start(self, rpc_client: AsyncClient):
@@ -115,16 +113,12 @@ class PoolTracker:
                 except Exception as e:
                     print(f"Error updating pool {config['address']}: {e}")
 
-    async def _fetch_pool_info(
-        self, rpc_client: AsyncClient, config: Dict
-    ) -> Optional[PoolInfo]:
+    async def _fetch_pool_info(self, rpc_client: AsyncClient, config: Dict) -> Optional[PoolInfo]:
         """Получение информации о пуле"""
         try:
             # Для Solana - получение данных аккаунта пула
             if self.network == "solana":
-                account_info = await rpc_client.get_account_info(
-                    Pubkey.from_string(config["address"])
-                )
+                account_info = await rpc_client.get_account_info(Pubkey.from_string(config["address"]))
                 if not account_info.value:
                     return None
 
@@ -171,8 +165,4 @@ class PoolTracker:
 
     def get_pools_for_token(self, token_address: str) -> List[PoolInfo]:
         """Получение всех пулов для токена"""
-        return [
-            p
-            for p in self.pools.values()
-            if p.token_a == token_address or p.token_b == token_address
-        ]
+        return [p for p in self.pools.values() if p.token_a == token_address or p.token_b == token_address]

@@ -21,9 +21,7 @@ class RPCNode:
         """Проверка пинга до ноды"""
         start = time.perf_counter()
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=5)
-            ) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
                 async with session.post(
                     self.url,
                     json={"jsonrpc": "2.0", "id": 1, "method": "getHealth"},
@@ -52,9 +50,7 @@ class RPCNode:
 class RPCManager:
     def __init__(self, rpc_urls: List[str], network: str = "solana"):
         self.network = network
-        self.nodes: List[RPCNode] = [
-            RPCNode(url, f"{network}_{i}") for i, url in enumerate(rpc_urls)
-        ]
+        self.nodes: List[RPCNode] = [RPCNode(url, f"{network}_{i}") for i, url in enumerate(rpc_urls)]
         self.active_node: Optional[RPCNode] = None
         self._health_check_task: Optional[asyncio.Task] = None
 

@@ -90,9 +90,7 @@ class SpreadCalculator:
             buy_pool.get("liquidity_usd", 100000),
             sell_pool.get("liquidity_usd", 100000),
         )
-        slippage = (
-            (trade_amount_usd / liquidity) * 100 * 2
-        )  # Коэффициент 2 для безопасности
+        slippage = (trade_amount_usd / liquidity) * 100 * 2  # Коэффициент 2 для безопасности
 
         # Газ и Tips
         gas_sol = 0.000005  # Solana базовый газ
@@ -101,9 +99,7 @@ class SpreadCalculator:
         gas_usd = total_gas_sol * self.sol_price_usd
 
         # Net спред
-        spread_net = (
-            spread_gross - total_dex_fee - slippage - (gas_usd / trade_amount_usd * 100)
-        )
+        spread_net = spread_gross - total_dex_fee - slippage - (gas_usd / trade_amount_usd * 100)
 
         # Прибыль
         profit_usd = (trade_amount_usd * spread_net / 100) - gas_usd

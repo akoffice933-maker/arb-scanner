@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 127
+target-version = ['py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+# Папки для исключения
+/(
+    \.git
+  | \.mypy_cache
+  | \.venv
+  | \.env
+  | build
+  | dist
+)/
+'''
+skip-string-normalization = true
+preview = true

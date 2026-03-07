@@ -101,9 +101,7 @@ class ArbitrageScanner:
 
                 # Сканирование Solana
                 if self.solana_pools:
-                    opportunities = await self._scan_network(
-                        self.solana_pools, "solana"
-                    )
+                    opportunities = await self._scan_network(self.solana_pools, "solana")
                     for opp in opportunities:
                         await self._process_opportunity(opp)
 
@@ -123,10 +121,7 @@ class ArbitrageScanner:
                 # Логирование статуса каждые 60 секунд
                 if scan_count % 30 == 0:
                     elapsed = time.time() - start_time
-                    print(
-                        f"📊 Scans: {scan_count}, Duration: {elapsed:.0f}s, "
-                        f"Avg scan time: {scan_duration:.2f}ms"
-                    )
+                    print(f"📊 Scans: {scan_count}, Duration: {elapsed:.0f}s, " f"Avg scan time: {scan_duration:.2f}ms")
 
                 # Пауза между сканами (целевая частота ~2 скана в секунду)
                 await asyncio.sleep(0.5)
@@ -137,9 +132,7 @@ class ArbitrageScanner:
                 print(f"❌ Scan error: {e}")
                 await asyncio.sleep(1)
 
-    async def _scan_network(
-        self, pool_tracker: PoolTracker, network: str
-    ) -> List[SpreadOpportunity]:
+    async def _scan_network(self, pool_tracker: PoolTracker, network: str) -> List[SpreadOpportunity]:
         """Сканирование одной сети"""
         opportunities = []
         pools = pool_tracker.get_all_pools()
@@ -180,9 +173,7 @@ class ArbitrageScanner:
 
     def _calculate_lifetime(self, opportunity: SpreadOpportunity) -> int:
         """Расчёт времени жизни арбитражной возможности"""
-        key = (
-            f"{opportunity.token_symbol}_{opportunity.buy_pool}_{opportunity.sell_pool}"
-        )
+        key = f"{opportunity.token_symbol}_{opportunity.buy_pool}_{opportunity.sell_pool}"
         current_time = time.time()
 
         if key in self._opportunity_cache:
@@ -193,9 +184,7 @@ class ArbitrageScanner:
             lifetime_ms = 0
 
         # Очистка кэша для возможностей старше 5 секунд
-        expired_keys = [
-            k for k, v in self._opportunity_cache.items() if current_time - v > 5
-        ]
+        expired_keys = [k for k, v in self._opportunity_cache.items() if current_time - v > 5]
         for k in expired_keys:
             del self._opportunity_cache[k]
 
@@ -237,9 +226,7 @@ class ArbitrageScanner:
                 {
                     "name": "solana",
                     "rpc_status": self.solana_rpc.get_status(),
-                    "pools_count": (
-                        len(self.solana_pools.pools) if self.solana_pools else 0
-                    ),
+                    "pools_count": len(self.solana_pools.pools) if self.solana_pools else 0,
                 }
             )
 

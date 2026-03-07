@@ -5,6 +5,8 @@
 [![Docker](https://img.shields.io/badge/docker-compose-latest-green.svg)](https://docs.docker.com/compose/)
 [![CI/CD](https://github.com/akoffice933-maker/arb-scanner/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/akoffice933-maker/arb-scanner/actions/workflows/ci-cd.yml)
 [![Contributors](https://img.shields.io/github/contributors/akoffice933-maker/arb-scanner)](https://github.com/akoffice933-maker/arb-scanner/graphs/contributors)
+[![Last Commit](https://img.shields.io/github/last-commit/akoffice933-maker/arb-scanner)](https://github.com/akoffice933-maker/arb-scanner/commits/main)
+[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 **Высокоскоростной сканер арбитражных возможностей для децентрализованных бирж (DEX) в сетях Solana и Base.**
 

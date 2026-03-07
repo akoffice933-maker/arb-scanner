@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # === Scanner Application ===
+  scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arb-scanner
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://arb_user:arb_password@postgres:5432/arb_scanner
+      - PROMETHEUS_PORT=9090
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - arb-network
+    volumes:
+      - ./logs:/app/logs
+    ports:
+      - "9090:9090"
+
+  # === PostgreSQL with TimescaleDB ===
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: arb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: arb_user
+      POSTGRES_PASSWORD: arb_password
+      POSTGRES_DB: arb_scanner
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - arb-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arb_user -d arb_scanner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === Prometheus ===
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: arb-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - arb-network
+    ports:
+      - "9091:9090"
+
+  # === Grafana ===
+  grafana:
+    image: grafana/grafana:latest
+    container_name: arb-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./dashboard:/etc/grafana/provisioning/dashboards
+    networks:
+      - arb-network
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+networks:
+  arb-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:

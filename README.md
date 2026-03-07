@@ -3,6 +3,8 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/docker-compose-latest-green.svg)](https://docs.docker.com/compose/)
+[![CI/CD](https://github.com/akoffice933-maker/arb-scanner/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/akoffice933-maker/arb-scanner/actions/workflows/ci-cd.yml)
+[![Contributors](https://img.shields.io/github/contributors/akoffice933-maker/arb-scanner)](https://github.com/akoffice933-maker/arb-scanner/graphs/contributors)
 
 **Высокоскоростной сканер арбитражных возможностей для децентрализованных бирж (DEX) в сетях Solana и Base.**
 
@@ -23,8 +25,14 @@
 - [Telegram уведомления](#-telegram-уведомления)
 - [Тестирование](#-тестирование)
 - [Добавление новых пулов](#-добавление-новых-пулов)
+- [Что НЕ делает сканер](#-что-не-делает-сканер)
+- [GO/NO-GO Метрики](#-go/no-go-метрики)
+- [Бюджет Инфраструктуры](#-бюджет-инфраструктуры-phase-1)
+- [Примеры Запросов](#-примеры-запросов)
+- [Примеры Вывода](#-примеры-вывода)
 - [FAQ](#-faq)
 - [План развития](#-план-развития)
+- [Предупреждения](#-предупреждения)
 - [Лицензия](#-лицензия)
 
 ---
@@ -701,6 +709,212 @@ psql -U arb_user -d arb_scanner -c "CREATE EXTENSION IF NOT EXISTS timescaledb C
 - [ ] Flashbots интеграция
 - [ ] Веб-интерфейс
 - [ ] REST API
+
+---
+
+## ❌ Что НЕ делает этот сканер
+
+Важно понимать ограничения проекта:
+
+| НЕ делает | Почему | Альтернатива |
+|-----------|--------|--------------|
+| ❌ Автоматическое исполнение | Phase 1 только для мониторинга | Phase 2 (в разработке) |
+| ❌ Гарантия прибыли | Рынок непредсказуем | Тестируйте на исторических данных |
+| ❌ Обход MEV атак | Требуется отдельная защита | Jito Bundle + private RPC |
+| ❌ Торговля с кредитным плечом | Только спотовые сделки | Интегрируйте с маржинальными DEX |
+| ❌ Поддержка всех DEX | Фокус на ликвидных | Добавляйте пулы вручную |
+| ❌ Мгновенное исполнение | Задержки сети и RPC | Оптимизируйте RPC ноды |
+| ❌ Работу без настройки | Требуется конфигурация | Следуйте инструкции |
+
+---
+
+## 📊 GO/NO-GO Метрики
+
+Используйте эти метрики для принятия решений об исполнении арбитража:
+
+### ✅ GO (исполнять)
+
+| Метрика | Порог | Значение |
+|---------|-------|----------|
+| **Spread Net** | > 0.5% | После всех комиссий |
+| **Lifetime** | < 500ms | Возможность ещё актуальна |
+| **Liquidity** | > $100,000 | Достаточно для входа |
+| **RPC Latency** | < 100ms | Нормальная задержка |
+| **Tip Floor** | < 0.01 SOL | Разумная комиссия |
+| **Slippage** | < 1% | Приемлемое проскальзывание |
+
+### ❌ NO-GO (пропускать)
+
+| Метрика | Порог | Причина |
+|---------|-------|---------|
+| **Spread Net** | < 0.15% | Недостаточно прибыли |
+| **Lifetime** | > 1000ms | Устаревшая возможность |
+| **Liquidity** | < $50,000 | Риск высокого проскальзывания |
+| **RPC Latency** | > 500ms | Высокий риск неудачи |
+| **Tip Floor** | > 0.05 SOL | Слишком дорого |
+| **Slippage** | > 3% | Потеря прибыли |
+
+### Пример решения
+
+```python
+if (opportunity.spread_net_percent >= 0.5 and
+    opportunity.lifetime_ms < 500 and
+    opportunity.liquidity_available >= 100000 and
+    rpc_manager.get_current_latency() < 100):
+    # ✅ GO - исполнять
+    await execute_arbitrage(opportunity)
+else:
+    # ❌ NO-GO - пропустить
+    logger.info(f"Skipping: metrics not met")
+```
+
+---
+
+## 💰 Бюджет Инфраструктуры (Phase 1)
+
+### Минимальный (~$50/мес)
+
+| Компонент | Стоимость | Примечание |
+|-----------|-----------|------------|
+| **VPS** | $5-10 | Hetzner, DigitalOcean |
+| **Solana RPC** | $0 | Helius free tier (100 RPS) |
+| **Base RPC** | $0 | Alchemy free tier (300 RPS) |
+| **База данных** | $0 | Локально на VPS |
+| **Мониторинг** | $0 | Prometheus + Grafana |
+| **Итого** | **~$10/мес** | Для тестирования |
+
+### Оптимальный (~$200/мес)
+
+| Компонент | Стоимость | Примечание |
+|-----------|-----------|------------|
+| **VPS** | $40-80 | 8 CPU, 16GB RAM, NVMe |
+| **Solana RPC** | $49 | Helius Grow (400 RPS) |
+| **Solana RPC 2** | $49 | Alchemy Growth (300 RPS) |
+| **Base RPC** | $0 | Alchemy free |
+| **Jito Tips** | ~$50 | 10-20% от прибыли |
+| **Итого** | **~$200/мес** | Для продакшена |
+
+### Профессиональный (~$2000/мес)
+
+| Компонент | Стоимость | Примечание |
+|-----------|-----------|------------|
+| **Dedicated Server** | $500 | AMD EPYC, 64GB RAM |
+| **Solana RPC (3 ноды)** | $400 | Helius + Alchemy + Triton |
+| **Base RPC (2 ноды)** | $200 | Alchemy + QuickNode |
+| **Managed DB** | $100 | Timescale Cloud |
+| **Jito Tips** | ~$800 | Активная торговля |
+| **Итого** | **~$2000/мес** | Макс. производительность |
+
+### Окупаемость
+
+| Сценарий | Прибыль/день | Прибыль/мес | ROI |
+|----------|--------------|-------------|-----|
+| **Минимальный** | $5-20 | $150-600 | 15-60x |
+| **Оптимальный** | $50-200 | $1500-6000 | 7-30x |
+| **Профессиональный** | $200-1000 | $6000-30000 | 3-15x |
+
+> ⚠️ **Реалии 2026:** Конкуренция высокая, edge выжат. Ожидайте прибыль в нижнем диапазоне.
+
+---
+
+## 📈 Примеры Запросов
+
+### SQL: Топ возможностей за 24 часа
+
+```sql
+SELECT 
+    token_symbol,
+    COUNT(*) as opportunities,
+    AVG(estimated_profit_usd) as avg_profit,
+    MAX(spread_net_percent) as max_spread
+FROM arbitrage_opportunities
+WHERE timestamp > NOW() - INTERVAL '24 hours'
+GROUP BY token_symbol
+ORDER BY avg_profit DESC
+LIMIT 10;
+```
+
+### SQL: Средняя длительность возможности
+
+```sql
+SELECT 
+    AVG(lifetime_ms) as avg_lifetime_ms,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY lifetime_ms) as p95_lifetime_ms
+FROM arbitrage_opportunities
+WHERE timestamp > NOW() - INTERVAL '1 hour';
+```
+
+### PromQL: Частота сканирования
+
+```promql
+# Сканирований в секунду (5m среднее)
+rate(arb_scanner_scans_total[5m])
+
+# По сетям
+sum by (network) (rate(arb_scanner_scans_total[5m]))
+```
+
+### PromQL: Процент успешных возможностей
+
+```promql
+# Возможности со спредом > 0.5%
+sum(arb_scanner_spread_percent_bucket{le="+Inf"}) 
+- 
+sum(arb_scanner_spread_percent_bucket{le="0.5"})
+```
+
+### PromQL: 95-й перцентиль прибыли
+
+```promql
+histogram_quantile(0.95, rate(arb_scanner_profit_usd_bucket[1h]))
+```
+
+---
+
+## 🖼️ Примеры Вывода
+
+### Лог сканера
+
+```
+🚀 Starting Arbitrage Scanner v3.0...
+✅ Database connected: localhost:5432/arb_scanner
+✅ Prometheus metrics server started on port 9090
+✅ Solana RPC & Pool Tracker initialized
+✅ Base RPC & Pool Tracker initialized
+✅ Scanner started
+============================================================
+💡 Opportunity: SOL | raydium → orca | Spread: 0.58% | Profit: $58.00 | Lifetime: 150ms
+💡 Opportunity: ETH | uniswap → aerodrome | Spread: 0.42% | Profit: $42.00 | Lifetime: 230ms
+📊 Scans: 30, Duration: 60s, Avg scan time: 485.23ms
+```
+
+### Telegram алерт
+
+```
+🚀 Arbitrage Opportunity Detected!
+
+🪙 Token: SOL
+⏰ Time: 2026-03-07 14:30:00
+
+📊 Route:
+  Buy: raydium
+  Sell: orca
+
+💰 Prices:
+  Buy Price: $150.000000
+  Sell Price: $152.000000
+
+📈 Spread:
+  Gross: 1.33%
+  Net: 0.58%
+
+💵 Estimated Profit: $58.00
+⛽ Gas + Tip: $0.15
+
+📉 Slippage: 0.20%
+⏱️ Lifetime: 150ms
+💧 Liquidity: $100,000
+```
 
 ---
 

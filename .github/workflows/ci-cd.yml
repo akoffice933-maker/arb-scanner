@@ -50,7 +50,7 @@ jobs:
 
     - name: Check formatting with black
       run: |
-        black --check .
+        black --check . --config pyproject.toml
 
     - name: Type check with mypy
       run: |

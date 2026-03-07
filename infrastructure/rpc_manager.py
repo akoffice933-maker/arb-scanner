@@ -12,7 +12,7 @@ class RPCNode:
         self.url = url
         self.name = name
         self.client = AsyncClient(url, commitment=Confirmed)
-        self.latency_ms: float = float('inf')
+        self.latency_ms: float = float("inf")
         self.is_healthy: bool = True
         self.last_check: float = 0
         self.error_count: int = 0
@@ -21,11 +21,13 @@ class RPCNode:
         """Проверка пинга до ноды"""
         start = time.perf_counter()
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=5)
+            ) as session:
                 async with session.post(
                     self.url,
                     json={"jsonrpc": "2.0", "id": 1, "method": "getHealth"},
-                    headers={"Content-Type": "application/json"}
+                    headers={"Content-Type": "application/json"},
                 ) as resp:
                     await resp.json()
             self.latency_ms = (time.perf_counter() - start) * 1000
@@ -34,7 +36,7 @@ class RPCNode:
         except Exception as e:
             self.is_healthy = False
             self.error_count += 1
-            self.latency_ms = float('inf')
+            self.latency_ms = float("inf")
         self.last_check = time.time()
         return self.latency_ms
 
@@ -102,7 +104,7 @@ class RPCManager:
 
     def get_current_latency(self) -> float:
         """Текущий пинг активной ноды"""
-        return self.active_node.latency_ms if self.active_node else float('inf')
+        return self.active_node.latency_ms if self.active_node else float("inf")
 
     def get_status(self) -> Dict[str, Any]:
         """Статус всех нод для мониторинга"""
@@ -115,8 +117,8 @@ class RPCManager:
                     "name": n.name,
                     "latency_ms": n.latency_ms,
                     "healthy": n.is_healthy,
-                    "errors": n.error_count
+                    "errors": n.error_count,
                 }
                 for n in self.nodes
-            ]
+            ],
         }

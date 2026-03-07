@@ -87,7 +87,7 @@ class ShredStreamClient:
             "bundle_id": bundle_id,
             "status": "pending",
             "transactions": [],
-            "slot": None
+            "slot": None,
         }
 
     async def estimate_tip(self) -> float:

@@ -63,11 +63,9 @@ class Database:
                 await session.commit()
 
                 # Преобразуем scan_metrics в hypertable
-                await session.execute(
-                    """
+                await session.execute("""
                     SELECT create_hypertable('scan_metrics', 'time', if_not_exists => TRUE)
-                    """
-                )
+                    """)
                 await session.commit()
                 print("✅ TimescaleDB enabled for scan_metrics")
         except Exception as e:
@@ -192,9 +190,11 @@ class Database:
 
         try:
             async with self.async_session() as session:
-                query = select(ArbitrageOpportunity).order_by(
-                    ArbitrageOpportunity.timestamp.desc()
-                ).limit(limit)
+                query = (
+                    select(ArbitrageOpportunity)
+                    .order_by(ArbitrageOpportunity.timestamp.desc())
+                    .limit(limit)
+                )
 
                 if network:
                     query = query.where(ArbitrageOpportunity.network == network)
@@ -207,9 +207,7 @@ class Database:
             print(f"❌ Failed to get opportunities: {e}")
             return []
 
-    async def get_statistics(
-        self, hours: int = 24
-    ) -> Dict[str, Any]:
+    async def get_statistics(self, hours: int = 24) -> Dict[str, Any]:
         """
         Получение статистики за период
 

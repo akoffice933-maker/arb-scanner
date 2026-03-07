@@ -10,6 +10,7 @@ import json
 @dataclass
 class PoolInfo:
     """Информация о пуле ликвидности"""
+
     address: str
     dex: str  # raydium, orca, aerodrome, uniswap
     token_a: str
@@ -34,7 +35,7 @@ class PoolInfo:
             "price_a_per_b": self.price_a_per_b,
             "price_b_per_a": self.price_b_per_a,
             "fee_percent": self.fee_percent,
-            "last_update": self.last_update.isoformat()
+            "last_update": self.last_update.isoformat(),
         }
 
 
@@ -50,7 +51,7 @@ class PoolTracker:
             "token_b": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
             "token_a_symbol": "SOL",
             "token_b_symbol": "USDC",
-            "fee_percent": 0.25
+            "fee_percent": 0.25,
         },
         {
             "address": "EGZ7tiLeH62TPV1gL8WwbXGzEPa9zmcpVnnkPKKnrE2U",  # SOL/USDC Orca
@@ -59,7 +60,7 @@ class PoolTracker:
             "token_b": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
             "token_a_symbol": "SOL",
             "token_b_symbol": "USDC",
-            "fee_percent": 0.30
+            "fee_percent": 0.30,
         },
         # Добавить больше пулов...
     ]
@@ -72,7 +73,7 @@ class PoolTracker:
             "token_b": "0x4200000000000000000000000000000000000006",
             "token_a_symbol": "USDC",
             "token_b_symbol": "ETH",
-            "fee_percent": 0.05
+            "fee_percent": 0.05,
         },
         # Добавить больше пулов...
     ]
@@ -80,7 +81,9 @@ class PoolTracker:
     def __init__(self, network: str = "solana"):
         self.network = network
         self.pools: Dict[str, PoolInfo] = {}
-        self.pool_configs = self.SOLANA_POOLS if network == "solana" else self.BASE_POOLS
+        self.pool_configs = (
+            self.SOLANA_POOLS if network == "solana" else self.BASE_POOLS
+        )
         self._update_task: Optional[asyncio.Task] = None
 
     async def start(self, rpc_client: AsyncClient):
@@ -112,7 +115,9 @@ class PoolTracker:
                 except Exception as e:
                     print(f"Error updating pool {config['address']}: {e}")
 
-    async def _fetch_pool_info(self, rpc_client: AsyncClient, config: Dict) -> Optional[PoolInfo]:
+    async def _fetch_pool_info(
+        self, rpc_client: AsyncClient, config: Dict
+    ) -> Optional[PoolInfo]:
         """Получение информации о пуле"""
         try:
             # Для Solana - получение данных аккаунта пула
@@ -136,8 +141,8 @@ class PoolTracker:
                     token_b_symbol=config["token_b_symbol"],
                     liquidity_usd=liquidity_usd,
                     price_a_per_b=price,
-                    price_b_per_a=1/price if price > 0 else 0,
-                    fee_percent=config["fee_percent"]
+                    price_b_per_a=1 / price if price > 0 else 0,
+                    fee_percent=config["fee_percent"],
                 )
 
             # Для Base (EVM) - вызов контракта
@@ -167,6 +172,7 @@ class PoolTracker:
     def get_pools_for_token(self, token_address: str) -> List[PoolInfo]:
         """Получение всех пулов для токена"""
         return [
-            p for p in self.pools.values()
+            p
+            for p in self.pools.values()
             if p.token_a == token_address or p.token_b == token_address
         ]

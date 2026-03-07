@@ -101,7 +101,9 @@ class ArbitrageScanner:
 
                 # Сканирование Solana
                 if self.solana_pools:
-                    opportunities = await self._scan_network(self.solana_pools, "solana")
+                    opportunities = await self._scan_network(
+                        self.solana_pools, "solana"
+                    )
                     for opp in opportunities:
                         await self._process_opportunity(opp)
 
@@ -178,7 +180,9 @@ class ArbitrageScanner:
 
     def _calculate_lifetime(self, opportunity: SpreadOpportunity) -> int:
         """Расчёт времени жизни арбитражной возможности"""
-        key = f"{opportunity.token_symbol}_{opportunity.buy_pool}_{opportunity.sell_pool}"
+        key = (
+            f"{opportunity.token_symbol}_{opportunity.buy_pool}_{opportunity.sell_pool}"
+        )
         current_time = time.time()
 
         if key in self._opportunity_cache:
@@ -190,9 +194,7 @@ class ArbitrageScanner:
 
         # Очистка кэша для возможностей старше 5 секунд
         expired_keys = [
-            k
-            for k, v in self._opportunity_cache.items()
-            if current_time - v > 5
+            k for k, v in self._opportunity_cache.items() if current_time - v > 5
         ]
         for k in expired_keys:
             del self._opportunity_cache[k]

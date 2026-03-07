@@ -127,7 +127,9 @@ class Metrics:
         """Запуск сервера метрик"""
         if not self._server_started:
             start_http_server(settings.PROMETHEUS_PORT, registry=self.registry)
-            print(f"✅ Prometheus metrics server started on port {settings.PROMETHEUS_PORT}")
+            print(
+                f"✅ Prometheus metrics server started on port {settings.PROMETHEUS_PORT}"
+            )
             self._server_started = True
 
         self.scanner_running.set(1)
@@ -149,7 +151,9 @@ class Metrics:
         self.scans_total.labels(network=network).inc()
         self.scan_duration.labels(network=network).observe(duration_sec)
 
-    def record_opportunity(self, opportunity: SpreadOpportunity, network: str = "solana"):
+    def record_opportunity(
+        self, opportunity: SpreadOpportunity, network: str = "solana"
+    ):
         """
         Запись метрик арбитражной возможности
 

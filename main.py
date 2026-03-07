@@ -32,9 +32,7 @@ class ScannerService:
         # Регистрация обработчиков сигналов
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(
-                sig, lambda: asyncio.create_task(self.shutdown())
-            )
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(self.shutdown()))
 
         # Запуск сканера
         await self.scanner.start()

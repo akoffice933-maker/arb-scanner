@@ -7,6 +7,7 @@ from config.settings import settings
 @dataclass
 class SpreadOpportunity:
     """Данные об арбитражной возможности"""
+
     timestamp: float
     token_symbol: str
     buy_dex: str
@@ -41,7 +42,7 @@ class SpreadOpportunity:
             "estimated_gas_usd": self.estimated_gas_usd,
             "slippage_percent": self.slippage_percent,
             "lifetime_ms": self.lifetime_ms,
-            "liquidity_available": self.liquidity_available
+            "liquidity_available": self.liquidity_available,
         }
 
 
@@ -53,10 +54,7 @@ class SpreadCalculator:
         self.eth_price_usd = eth_price_usd
 
     def calculate_spread(
-        self,
-        buy_pool: Dict,
-        sell_pool: Dict,
-        trade_amount_usd: float = 10000
+        self, buy_pool: Dict, sell_pool: Dict, trade_amount_usd: float = 10000
     ) -> Optional[SpreadOpportunity]:
         """
         Расчёт арбитражного спреда между двумя пулами
@@ -90,9 +88,11 @@ class SpreadCalculator:
         # Проскальзывание (упрощённая модель)
         liquidity = min(
             buy_pool.get("liquidity_usd", 100000),
-            sell_pool.get("liquidity_usd", 100000)
+            sell_pool.get("liquidity_usd", 100000),
         )
-        slippage = (trade_amount_usd / liquidity) * 100 * 2  # Коэффициент 2 для безопасности
+        slippage = (
+            (trade_amount_usd / liquidity) * 100 * 2
+        )  # Коэффициент 2 для безопасности
 
         # Газ и Tips
         gas_sol = 0.000005  # Solana базовый газ
@@ -101,7 +101,9 @@ class SpreadCalculator:
         gas_usd = total_gas_sol * self.sol_price_usd
 
         # Net спред
-        spread_net = spread_gross - total_dex_fee - slippage - (gas_usd / trade_amount_usd * 100)
+        spread_net = (
+            spread_gross - total_dex_fee - slippage - (gas_usd / trade_amount_usd * 100)
+        )
 
         # Прибыль
         profit_usd = (trade_amount_usd * spread_net / 100) - gas_usd
@@ -125,7 +127,7 @@ class SpreadCalculator:
             estimated_gas_usd=gas_usd,
             slippage_percent=slippage,
             lifetime_ms=0,  # Будет рассчитано сканером
-            liquidity_available=liquidity
+            liquidity_available=liquidity,
         )
 
     def _estimate_tip(self) -> float:

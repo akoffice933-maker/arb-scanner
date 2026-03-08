@@ -10,7 +10,8 @@
 
 **Высокоскоростной сканер арбитражных возможностей для децентрализованных бирж (DEX) в сетях Solana и Base.**
 
-> ⚠️ **Phase 1** — Сбор статистики и мониторинг. Исполнительный бот для автоматического исполнения арбитража разрабатывается отдельно.
+> ⚠️ **Phase 1** — Сбор статистики и мониторинг.  
+> 🚀 **Phase 2 (AME v3.0)** — Исполнительный MEV-движок (в разработке, см. `ame-v3/`).
 
 ---
 
@@ -32,6 +33,7 @@
 - [Бюджет Инфраструктуры](#-бюджет-инфраструктуры-phase-1)
 - [Примеры Запросов](#-примеры-запросов)
 - [Примеры Вывода](#-примеры-вывода)
+- [AME v3.0 (Phase 2)](#-ame-v30-phase-2--execution-engine)
 - [FAQ](#-faq)
 - [План развития](#-план-развития)
 - [Предупреждения](#-предупреждения)
@@ -684,6 +686,58 @@ await asyncio.sleep(0.5)  # 0.5 = 2 скана/сек
 -- Включите расширение вручную
 psql -U arb_user -d arb_scanner -c "CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;"
 ```
+
+---
+
+## 🚀 AME v3.0 (Phase 2) — Execution Engine
+
+**Advanced MEV Arbitrage Engine v3.0** — полноценная исполнительная система уровня hedge-fund.
+
+### Отличия Phase 1 vs Phase 2
+
+| Аспект | arb-scanner (Phase 1) | AME v3.0 (Phase 2) |
+|--------|----------------------|-------------------|
+| **Цель** | Мониторинг и сбор статистики | Полноценное исполнение |
+| **Latency** | ~500ms | <30–80ms p95 |
+| **Стратегии** | Базовый спред | Multi-hop, backrun, liquidation, JIT |
+| **Risk** | Логирование | Kill-switch, portfolio mgmt |
+| **MEV** | Нет | Jito Bundles, competition estimator |
+| **Язык** | Python | Rust (core) + Python (analytics) |
+
+### Ключевые компоненты AME v3.0
+
+```
+ame-v3/
+├── core/
+│   ├── liquidity_graph.py    # Graph engine + Bellman-Ford
+│   └── scoring_engine.py     # Opportunity scoring
+├── risk/
+│   └── kill_switch.py        # Auto-stop on losses
+├── strategies/               # Modular strategies
+├── execution/                # Bundle builder, tip optimizer
+├── analytics/                # Historical alpha, telemetry
+└── config/
+    └── settings.py           # 200+ hedge-fund settings
+```
+
+### Производительность
+
+| Метрика | Target |
+|---------|--------|
+| **Latency p95** | <30–80ms |
+| **Throughput** | >500k updates/sec |
+| **Profit Accuracy** | >97% |
+| **Success Rate** | >70% |
+
+### Запуск AME v3.0
+
+```bash
+cd ame-v3
+pip install -r requirements.txt
+python -m core.liquidity_graph  # Example usage
+```
+
+**Полная документация:** [ame-v3/README.md](ame-v3/README.md)
 
 ---
 

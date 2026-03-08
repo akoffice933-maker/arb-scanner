@@ -1,0 +1,37 @@
+# AME v3.0 Core Dependencies
+solana>=0.30.2
+solders>=0.19.0
+aiohttp>=3.9.1
+asyncio>=3.4.3
+
+# Database
+sqlalchemy>=2.0.23
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+redis>=5.0.0
+
+# Settings & Validation
+pydantic>=1.10.13
+python-dotenv>=1.0.0
+
+# Monitoring
+prometheus-client>=0.19.0
+
+# gRPC (Jito ShredStream)
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+
+# Graph Algorithms
+networkx>=3.2
+numpy>=1.26.0
+
+# Optimization
+scipy>=1.11.0
+
+# Testing
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+
+# Utilities
+typing-extensions>=4.9.0

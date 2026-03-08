@@ -1,455 +1,315 @@
 """
-Execution Engine
+Execution Engine v2 — Realistic Simulation (No Fake Success)
 
-Build and submit transaction bundles for MEV arbitrage.
+FIXED:
+- Removed "always success" mocks
+- Proper simulation with failure scenarios
+- Realistic success rates based on conditions
+- Slippage and gas estimation
 
-Features:
-- Bundle builder (Jito, Flashbots)
-- Flashloan integration
-- Atomic execution
-- Gas optimization
-- Tip management
-
-Target: <50ms bundle construction, >70% success rate
+Target: Paper/sim-only mode with realistic outcomes
 """
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 import asyncio
+import random
 
 
-class BundleStatus(Enum):
-    """Bundle execution status"""
-    PENDING = "pending"
-    SUBMITTED = "submitted"
-    LANDED = "landed"
+class ExecutionStatus(Enum):
+    """Execution result status"""
+    SUCCESS = "success"
     FAILED = "failed"
     REVERTED = "reverted"
     TIMEOUT = "timeout"
+    INSUFFICIENT_LIQUIDITY = "insufficient_liquidity"
+    SLIPPAGE_TOO_HIGH = "slippage_too_high"
+    GAS_TOO_HIGH = "gas_too_high"
 
 
 @dataclass
-class BundleConfig:
-    """Configuration for bundle execution"""
-    max_retries: int = 3
-    timeout_seconds: int = 30
-    use_flashloan: bool = True
-    flashloan_provider: str = "jito"  # jito, aave, kamino
-    simulate_before_send: bool = True
-    revert_on_failure: bool = True
-
-
-@dataclass
-class BundleResult:
-    """Result of bundle execution"""
-    bundle_id: str
-    status: BundleStatus
-    transactions_count: int
-    total_gas_used: int
-    total_tip_sol: float
+class ExecutionResult:
+    """Result of trade execution"""
+    status: ExecutionStatus
     profit_usd: float
-    execution_time_ms: float
+    gas_used: float
+    slippage_percent: float
     error_message: Optional[str] = None
+    execution_time_ms: float = 0.0
     timestamp: datetime = field(default_factory=datetime.utcnow)
+    
+    @property
+    def is_success(self) -> bool:
+        return self.status == ExecutionStatus.SUCCESS
     
     def to_dict(self) -> dict:
         return {
-            "bundle_id": self.bundle_id,
             "status": self.status.value,
-            "transactions_count": self.transactions_count,
-            "total_gas_used": self.total_gas_used,
-            "total_tip_sol": self.total_tip_sol,
             "profit_usd": self.profit_usd,
-            "execution_time_ms": self.execution_time_ms,
+            "gas_used": self.gas_used,
+            "slippage_percent": self.slippage_percent,
             "error_message": self.error_message,
+            "execution_time_ms": self.execution_time_ms,
             "timestamp": self.timestamp.isoformat(),
+            "is_success": self.is_success,
         }
 
 
 @dataclass
-class FlashloanConfig:
-    """Flashloan configuration"""
-    provider: str
-    token: str
-    amount: float
-    fee_percent: float = 0.09  # Typical flashloan fee
-    repayment_required: bool = True
+class SimulationConfig:
+    """Configuration for realistic simulation"""
+    base_success_rate: float = 0.85  # 85% base success rate
+    slippage_volatility: float = 0.5  # Slippage variance
+    gas_volatility: float = 0.3  # Gas price variance
+    latency_mean_ms: float = 100.0  # Average latency
+    latency_std_ms: float = 50.0  # Latency variance
+    revert_rate: float = 0.05  # 5% revert rate
+    timeout_rate: float = 0.02  # 2% timeout rate
 
 
 class ExecutionEngine:
     """
-    Build and execute MEV bundles
+    Execution Engine v2 — Realistic Simulation
     
-    Supports:
-    - Jito Bundles (Solana)
-    - Flashbots (Base/Ethereum)
-    - Flashloans (Aave, Kamino)
-    - Atomic multi-tx execution
+    Key features:
+    - No fake "always success"
+    - Realistic failure scenarios
+    - Slippage modeling
+    - Gas estimation
+    - Latency simulation
     """
     
-    def __init__(
-        self,
-        config: BundleConfig = None,
-        jito_uuid: str = None,
-        flashbots_key: str = None,
-    ):
-        self.config = config or BundleConfig()
-        self.jito_uuid = jito_uuid
-        self.flashbots_key = flashbots_key
+    def __init__(self, config: SimulationConfig = None):
+        self.config = config or SimulationConfig()
         
         # Statistics
-        self.bundles_submitted = 0
-        self.bundles_landed = 0
-        self.bundles_failed = 0
+        self.executions_count = 0
+        self.success_count = 0
+        self.failed_count = 0
         self.total_profit_usd = 0.0
+        self.total_gas_usd = 0.0
     
-    async def build_bundle(
+    async def execute_trade(
         self,
-        route: List[Dict],
-        input_amount: float,
-        min_profit_usd: float,
-        tip_sol: float,
-    ) -> Optional[List[bytes]]:
+        opportunity: Dict,
+        max_slippage_percent: float = 1.0,
+        max_gas_usd: float = 100.0,
+    ) -> ExecutionResult:
         """
-        Build transaction bundle
+        Execute trade with realistic simulation
         
         Args:
-            route: List of pool instructions
-            input_amount: Starting amount
-            min_profit_usd: Minimum acceptable profit
-            tip_sol: Tip amount for validators
+            opportunity: Opportunity dict with expected_profit_usd, etc.
+            max_slippage_percent: Maximum acceptable slippage
+            max_gas_usd: Maximum acceptable gas cost
         
         Returns:
-            List of serialized transactions or None
-        """
-        transactions = []
-        
-        # 1. Flashloan borrow (if enabled)
-        if self.config.use_flashloan:
-            flashloan_tx = await self._build_flashloan_borrow(
-                amount=input_amount,
-                token="USDC",  # Simplified
-            )
-            transactions.append(flashloan_tx)
-        
-        # 2. Build swap transactions for each hop
-        for pool_instruction in route:
-            swap_tx = await self._build_swap_transaction(
-                pool=pool_instruction,
-                amount_in=input_amount,
-            )
-            transactions.append(swap_tx)
-            
-            # Update amount for next hop (simplified)
-            input_amount = input_amount * 0.999  # Assume small profit
-        
-        # 3. Flashloan repay (if enabled)
-        if self.config.use_flashloan:
-            repay_tx = await self._build_flashloan_repay(
-                token="USDC",
-            )
-            transactions.append(repay_tx)
-        
-        # 4. Add tip transaction
-        tip_tx = await self._build_tip_transaction(tip_sol)
-        transactions.append(tip_tx)
-        
-        return transactions
-    
-    async def _build_flashloan_borrow(
-        self,
-        amount: float,
-        token: str,
-    ) -> bytes:
-        """Build flashloan borrow transaction"""
-        # Placeholder - in production: build actual Solana transaction
-        # Using Kamino or Solend for Solana flashloans
-        await asyncio.sleep(0.01)  # Simulate build time
-        return b"flashloan_borrow_tx_placeholder"
-    
-    async def _build_swap_transaction(
-        self,
-        pool: Dict,
-        amount_in: float,
-    ) -> bytes:
-        """Build single swap transaction"""
-        # Placeholder - in production: build actual DEX swap
-        # Raydium, Orca, etc.
-        await asyncio.sleep(0.01)
-        return b"swap_tx_placeholder"
-    
-    async def _build_flashloan_repay(
-        self,
-        token: str,
-    ) -> bytes:
-        """Build flashloan repay transaction"""
-        await asyncio.sleep(0.01)
-        return b"flashloan_repay_tx_placeholder"
-    
-    async def _build_tip_transaction(
-        self,
-        tip_sol: float,
-    ) -> bytes:
-        """Build validator tip transaction"""
-        await asyncio.sleep(0.01)
-        return b"tip_tx_placeholder"
-    
-    async def execute_bundle(
-        self,
-        bundle: List[bytes],
-        expected_profit_usd: float,
-    ) -> BundleResult:
-        """
-        Execute bundle
-        
-        Args:
-            bundle: List of transactions
-            expected_profit_usd: Expected profit
-        
-        Returns:
-            BundleResult
+            ExecutionResult with realistic outcome
         """
         start_time = datetime.utcnow()
-        bundle_id = f"bundle_{len(self.bundles_submitted)}"
+        self.executions_count += 1
         
-        self.bundles_submitted += 1
+        # 1. Simulate latency
+        latency = self._simulate_latency()
+        await asyncio.sleep(latency / 1000)  # Convert to seconds
         
-        # Simulate execution (in production: submit to Jito/Flashbots)
-        for retry in range(self.config.max_retries):
-            try:
-                # 1. Simulate bundle (optional)
-                if self.config.simulate_before_send:
-                    sim_result = await self._simulate_bundle(bundle)
-                    if not sim_result.success:
-                        return BundleResult(
-                            bundle_id=bundle_id,
-                            status=BundleStatus.REVERTED,
-                            transactions_count=len(bundle),
-                            total_gas_used=0,
-                            total_tip_sol=0,
-                            profit_usd=0,
-                            execution_time_ms=0,
-                            error_message=sim_result.error,
-                        )
-                
-                # 2. Submit bundle
-                submit_result = await self._submit_bundle(bundle)
-                
-                if submit_result.success:
-                    # 3. Wait for confirmation
-                    confirm_result = await self._wait_for_confirmation(
-                        bundle_id=submit_result.bundle_id,
-                        timeout=self.config.timeout_seconds,
-                    )
-                    
-                    execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
-                    
-                    if confirm_result.landed:
-                        self.bundles_landed += 1
-                        actual_profit = expected_profit_usd * 0.95  # Assume 95% of expected
-                        self.total_profit_usd += actual_profit
-                        
-                        return BundleResult(
-                            bundle_id=submit_result.bundle_id,
-                            status=BundleStatus.LANDED,
-                            transactions_count=len(bundle),
-                            total_gas_used=confirm_result.gas_used,
-                            total_tip_sol=confirm_result.tip_paid,
-                            profit_usd=actual_profit,
-                            execution_time_ms=execution_time,
-                        )
-                    else:
-                        self.bundles_failed += 1
-                        return BundleResult(
-                            bundle_id=submit_result.bundle_id,
-                            status=BundleStatus.FAILED,
-                            transactions_count=len(bundle),
-                            total_gas_used=0,
-                            total_tip_sol=0,
-                            profit_usd=0,
-                            execution_time_ms=execution_time,
-                            error_message="Bundle did not land",
-                        )
-                else:
-                    continue  # Retry
-                    
-            except Exception as e:
-                if retry == self.config.max_retries - 1:
-                    self.bundles_failed += 1
-                    execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
-                    return BundleResult(
-                        bundle_id=bundle_id,
-                        status=BundleStatus.FAILED,
-                        transactions_count=len(bundle),
-                        total_gas_used=0,
-                        total_tip_sol=0,
-                        profit_usd=0,
-                        execution_time_ms=execution_time,
-                        error_message=str(e),
-                    )
+        # 2. Check for random failures
+        failure = self._check_random_failure()
+        if failure:
+            self.failed_count += 1
+            return ExecutionResult(
+                status=failure,
+                profit_usd=0.0,
+                gas_used=0.0,
+                slippage_percent=0.0,
+                error_message=self._get_error_message(failure),
+                execution_time_ms=latency,
+            )
         
-        # Timeout after all retries
-        self.bundles_failed += 1
-        return BundleResult(
-            bundle_id=bundle_id,
-            status=BundleStatus.TIMEOUT,
-            transactions_count=len(bundle),
-            total_gas_used=0,
-            total_tip_sol=0,
-            profit_usd=0,
-            execution_time_ms=0,
-            error_message="Max retries exceeded",
+        # 3. Simulate slippage
+        slippage = self._simulate_slippage(opportunity)
+        
+        if slippage > max_slippage_percent:
+            self.failed_count += 1
+            return ExecutionResult(
+                status=ExecutionStatus.SLIPPAGE_TOO_HIGH,
+                profit_usd=0.0,
+                gas_used=5.0,  # Some gas wasted
+                slippage_percent=slippage,
+                error_message=f"Slippage {slippage:.2f}% exceeds max {max_slippage_percent:.2f}%",
+                execution_time_ms=latency,
+            )
+        
+        # 4. Simulate gas
+        gas_cost = self._simulate_gas_cost()
+        
+        if gas_cost > max_gas_usd:
+            self.failed_count += 1
+            return ExecutionResult(
+                status=ExecutionStatus.GAS_TOO_HIGH,
+                profit_usd=0.0,
+                gas_used=gas_cost,
+                slippage_percent=slippage,
+                error_message=f"Gas ${gas_cost:.2f} exceeds max ${max_gas_usd:.2f}",
+                execution_time_ms=latency,
+            )
+        
+        # 5. Calculate actual profit (with slippage impact)
+        expected_profit = opportunity.get("expected_profit_usd", 0.0)
+        slippage_impact = expected_profit * (slippage / 100)
+        actual_profit = expected_profit - slippage_impact - gas_cost
+        
+        # 6. Success!
+        self.success_count += 1
+        self.total_profit_usd += actual_profit
+        self.total_gas_usd += gas_cost
+        
+        return ExecutionResult(
+            status=ExecutionStatus.SUCCESS,
+            profit_usd=actual_profit,
+            gas_used=gas_cost,
+            slippage_percent=slippage,
+            execution_time_ms=latency,
         )
     
-    async def _simulate_bundle(
-        self,
-        bundle: List[bytes],
-    ) -> 'SimulationResult':
-        """Simulate bundle execution"""
-        # Placeholder - in production: use Jito simulation API
-        await asyncio.sleep(0.05)
-        return SimulationResult(success=True, error=None)
-    
-    async def _submit_bundle(
-        self,
-        bundle: List[bytes],
-    ) -> 'SubmitResult':
-        """Submit bundle to relay"""
-        # Placeholder - in production: submit to Jito/Flashbots
-        await asyncio.sleep(0.1)
-        return SubmitResult(success=True, bundle_id="submitted_bundle_123")
-    
-    async def _wait_for_confirmation(
-        self,
-        bundle_id: str,
-        timeout: int,
-    ) -> 'ConfirmResult':
-        """Wait for bundle confirmation"""
-        # Placeholder - in production: poll for confirmation
-        await asyncio.sleep(0.2)
-        return ConfirmResult(
-            landed=True,
-            gas_used=100000,
-            tip_paid=0.001,
+    def _simulate_latency(self) -> float:
+        """Simulate realistic latency"""
+        # Normal distribution around mean
+        latency = random.gauss(
+            self.config.latency_mean_ms,
+            self.config.latency_std_ms,
         )
+        return max(10.0, latency)  # Min 10ms
+    
+    def _check_random_failure(self) -> Optional[ExecutionStatus]:
+        """Check for random failures"""
+        rand = random.random()
+        
+        # Check revert
+        if rand < self.config.revert_rate:
+            return ExecutionStatus.REVERTED
+        
+        # Check timeout
+        if rand < self.config.revert_rate + self.config.timeout_rate:
+            return ExecutionStatus.TIMEOUT
+        
+        # Check general failure (based on base success rate)
+        if rand > self.config.base_success_rate:
+            return ExecutionStatus.FAILED
+        
+        return None
+    
+    def _simulate_slippage(self, opportunity: Dict) -> float:
+        """Simulate realistic slippage"""
+        base_slippage = opportunity.get("estimated_slippage_percent", 0.2)
+        
+        # Add volatility
+        volatility = random.gauss(0, self.config.slippage_volatility)
+        slippage = base_slippage + abs(volatility)
+        
+        return max(0.05, slippage)  # Min 0.05%
+    
+    def _simulate_gas_cost(self) -> float:
+        """Simulate realistic gas cost"""
+        base_gas = 10.0  # Base $10
+        volatility = random.gauss(0, base_gas * self.config.gas_volatility)
+        gas = base_gas + abs(volatility)
+        return gas
+    
+    def _get_error_message(self, status: ExecutionStatus) -> str:
+        """Get error message for status"""
+        messages = {
+            ExecutionStatus.FAILED: "Trade execution failed",
+            ExecutionStatus.REVERTED: "Transaction reverted on-chain",
+            ExecutionStatus.TIMEOUT: "Transaction timeout",
+            ExecutionStatus.INSUFFICIENT_LIQUIDITY: "Insufficient liquidity in pool",
+            ExecutionStatus.SLIPPAGE_TOO_HIGH: "Slippage exceeded threshold",
+            ExecutionStatus.GAS_TOO_HIGH: "Gas cost exceeded threshold",
+        }
+        return messages.get(status, "Unknown error")
     
     def get_statistics(self) -> Dict:
-        """Get execution engine statistics"""
+        """Get execution statistics"""
         success_rate = (
-            self.bundles_landed / self.bundles_submitted * 100
-            if self.bundles_submitted > 0 else 0
+            self.success_count / self.executions_count * 100
+            if self.executions_count > 0 else 0
         )
         
         return {
-            "bundles_submitted": self.bundles_submitted,
-            "bundles_landed": self.bundles_landed,
-            "bundles_failed": self.bundles_failed,
+            "executions_count": self.executions_count,
+            "success_count": self.success_count,
+            "failed_count": self.failed_count,
             "success_rate": success_rate,
             "total_profit_usd": self.total_profit_usd,
-            "avg_profit_per_bundle": (
-                self.total_profit_usd / self.bundles_landed
-                if self.bundles_landed > 0 else 0
+            "total_gas_usd": self.total_gas_usd,
+            "avg_profit_per_execution": (
+                self.total_profit_usd / self.executions_count
+                if self.executions_count > 0 else 0
             ),
             "config": {
-                "max_retries": self.config.max_retries,
-                "timeout_seconds": self.config.timeout_seconds,
-                "use_flashloan": self.config.use_flashloan,
+                "base_success_rate": self.config.base_success_rate,
+                "revert_rate": self.config.revert_rate,
+                "timeout_rate": self.config.timeout_rate,
             },
         }
 
 
-@dataclass
-class SimulationResult:
-    """Result of bundle simulation"""
-    success: bool
-    error: Optional[str]
-
-
-@dataclass
-class SubmitResult:
-    """Result of bundle submission"""
-    success: bool
-    bundle_id: Optional[str]
-
-
-@dataclass
-class ConfirmResult:
-    """Result of bundle confirmation"""
-    landed: bool
-    gas_used: int
-    tip_paid: float
-
-
-class JitoBundleBuilder:
+class PaperTradingExecutor:
     """
-    Jito-specific bundle builder
+    Paper Trading Executor
     
-    Optimized for Solana MEV with:
-    - Direct validator connection
-    - ShredStream integration
-    - Optimal tip bidding
+    Wraps ExecutionEngine for paper trading mode.
+    All trades are simulated with realistic outcomes.
     """
     
-    def __init__(self, jito_uuid: str, auth_keypair: str):
-        self.jito_uuid = jito_uuid
-        self.auth_keypair = auth_keypair
-        self._connected = False
+    def __init__(self, engine: ExecutionEngine = None):
+        self.engine = engine or ExecutionEngine()
+        self.trades: List[ExecutionResult] = []
     
-    async def connect(self):
-        """Connect to Jito relay"""
-        # Placeholder - in production: establish gRPC connection
-        self._connected = True
-    
-    async def build_optimized_bundle(
+    async def execute_opportunity(
         self,
-        transactions: List[bytes],
-        tip_sol: float,
-    ) -> List[bytes]:
-        """Build Jito-optimized bundle"""
-        # Add tip transaction at end
-        tip_tx = await self._create_tip_tx(tip_sol)
-        transactions.append(tip_tx)
+        opportunity: Dict,
+        max_slippage_percent: float = 1.0,
+        max_gas_usd: float = 100.0,
+    ) -> ExecutionResult:
+        """Execute opportunity in paper mode"""
+        result = await self.engine.execute_trade(
+            opportunity=opportunity,
+            max_slippage_percent=max_slippage_percent,
+            max_gas_usd=max_gas_usd,
+        )
         
-        # Optimize ordering for MEV
-        transactions = await self._optimize_ordering(transactions)
+        # Record trade
+        self.trades.append(result)
         
-        return transactions
+        return result
     
-    async def _create_tip_tx(self, tip_sol: float) -> bytes:
-        """Create tip transaction"""
-        await asyncio.sleep(0.01)
-        return b"jito_tip_tx"
+    def get_trade_history(self) -> List[ExecutionResult]:
+        """Get all executed trades"""
+        return self.trades
     
-    async def _optimize_ordering(
-        self,
-        transactions: List[bytes],
-    ) -> List[bytes]:
-        """Optimize transaction ordering"""
-        # Placeholder - in production: optimize for MEV extraction
-        return transactions
-
-
-class FlashbotsBundleBuilder:
-    """
-    Flashbots-specific bundle builder
-    
-    For Base/Ethereum MEV with:
-    - Builder API integration
-    - Gas optimization
-    - Bundle prioritization
-    """
-    
-    def __init__(self, flashbots_key: str):
-        self.flashbots_key = flashbots_key
-    
-    async def build_bundle(
-        self,
-        transactions: List[bytes],
-        max_fee_per_gas: int,
-        max_priority_fee: int,
-    ) -> List[bytes]:
-        """Build Flashbots-compatible bundle"""
-        # Add gas configuration
-        # Optimize for Base vs Ethereum mainnet
-        return transactions
+    def get_performance_summary(self) -> Dict:
+        """Get performance summary"""
+        if not self.trades:
+            return {"total_trades": 0}
+        
+        successful = [t for t in self.trades if t.is_success]
+        failed = [t for t in self.trades if not t.is_success]
+        
+        return {
+            "total_trades": len(self.trades),
+            "successful_trades": len(successful),
+            "failed_trades": len(failed),
+            "success_rate": len(successful) / len(self.trades) * 100,
+            "total_profit_usd": sum(t.profit_usd for t in successful),
+            "total_gas_usd": sum(t.gas_used for t in self.trades),
+            "avg_profit_per_trade": (
+                sum(t.profit_usd for t in successful) / len(self.trades)
+                if self.trades else 0
+            ),
+            "avg_slippage_percent": (
+                sum(t.slippage_percent for t in self.trades) / len(self.trades)
+                if self.trades else 0
+            ),
+        }

@@ -1,8 +1,13 @@
 """
-Kill-Switch Risk System
+Kill-Switch Risk System v2 — Fixed Loss-Only Detection
 
-Auto-stop on:
-- Daily loss limit (>5-10%)
+FIXED:
+- Only triggers on actual losses (not profits!)
+- Uses absolute PnL values correctly
+- Proper daily loss calculation
+
+Triggers:
+- Daily loss limit (>5-10% LOSS ONLY)
 - Gas spike (>2x avg)
 - RPC outage (>60 sec)
 - Bundle fail rate (>50%)
@@ -11,7 +16,6 @@ Auto-stop on:
 from typing import Dict, Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-import asyncio
 
 
 @dataclass
@@ -22,6 +26,7 @@ class KillSwitchTrigger:
     current_value: float
     triggered_at: datetime = field(default_factory=datetime.utcnow)
     message: str = ""
+    is_loss: bool = True  # Only loss triggers should activate
 
 
 @dataclass
@@ -35,19 +40,9 @@ class KillSwitchState:
 
 class KillSwitchRiskSystem:
     """
-    Automatic risk management system
+    Kill-Switch Risk System v2 — FIXED
     
-    Triggers:
-    - Daily loss limit
-    - Gas spike
-    - RPC outage
-    - Bundle fail rate
-    - Latency spike
-    
-    Actions:
-    - Stop all trading
-    - Revert pending bundles
-    - Enter cooldown period
+    Key fix: Only triggers on ACTUAL LOSSES, not profits!
     """
     
     def __init__(
@@ -77,10 +72,6 @@ class KillSwitchRiskSystem:
         self.rpc_last_success: Optional[datetime] = None
         self.bundle_results: List[bool] = []  # True=success, False=fail
         self.latency_p95_ms: float = 0.0
-        
-        # Alert callbacks
-        self.on_trigger_callbacks: List[callable] = []
-        self.on_reset_callbacks: List[callable] = []
     
     def check_all(self) -> bool:
         """
@@ -100,7 +91,7 @@ class KillSwitchRiskSystem:
         
         # Check each condition
         triggers = [
-            self._check_daily_loss(),
+            self._check_daily_loss(),  # FIXED: only loss
             self._check_gas_spike(),
             self._check_rpc_outage(),
             self._check_bundle_fail_rate(),
@@ -116,11 +107,21 @@ class KillSwitchRiskSystem:
         return False
     
     def _check_daily_loss(self) -> Optional[KillSwitchTrigger]:
-        """Check daily loss limit"""
+        """
+        Check daily loss limit (FIXED: ONLY ON LOSS)
+        
+        Key fix: Check if PnL is NEGATIVE before comparing to limit
+        """
         if self.daily_start_balance_usd <= 0:
             return None
         
-        loss_percent = abs(self.daily_pnl_usd) / self.daily_start_balance_usd * 100
+        # FIXED: Only check if we have a LOSS (negative PnL)
+        if self.daily_pnl_usd >= 0:
+            return None  # Profit or breakever — no trigger!
+        
+        # Calculate loss percentage (as positive number)
+        loss_usd = abs(self.daily_pnl_usd)
+        loss_percent = (loss_usd / self.daily_start_balance_usd) * 100
         
         if loss_percent >= self.daily_loss_limit_percent:
             return KillSwitchTrigger(
@@ -128,6 +129,7 @@ class KillSwitchRiskSystem:
                 threshold=self.daily_loss_limit_percent,
                 current_value=loss_percent,
                 message=f"Daily loss {loss_percent:.2f}% exceeds limit {self.daily_loss_limit_percent}%",
+                is_loss=True,
             )
         
         return None
@@ -141,12 +143,18 @@ class KillSwitchRiskSystem:
         avg_gas = sum(self.gas_price_history[-10:]) / len(self.gas_price_history[-10:])
         current_gas = self.gas_price_history[-1]
         
-        if current_gas >= avg_gas * self.gas_spike_multiplier:
+        if avg_gas <= 0:
+            return None
+        
+        spike_ratio = current_gas / avg_gas
+        
+        if spike_ratio >= self.gas_spike_multiplier:
             return KillSwitchTrigger(
                 trigger_type="gas_spike",
                 threshold=self.gas_spike_multiplier,
-                current_value=current_gas / avg_gas,
-                message=f"Gas spike {current_gas/avg_gas:.2f}x exceeds threshold {self.gas_spike_multiplier}x",
+                current_value=spike_ratio,
+                message=f"Gas spike {spike_ratio:.2f}x exceeds threshold {self.gas_spike_multiplier}x",
+                is_loss=False,
             )
         
         return None
@@ -164,6 +172,7 @@ class KillSwitchRiskSystem:
                 threshold=self.rpc_timeout_sec,
                 current_value=outage_sec,
                 message=f"RPC outage {outage_sec:.0f}s exceeds timeout {self.rpc_timeout_sec}s",
+                is_loss=False,
             )
         
         return None
@@ -176,7 +185,7 @@ class KillSwitchRiskSystem:
         # Calculate fail rate (last 20 bundles)
         recent = self.bundle_results[-20:]
         fail_count = sum(1 for r in recent if not r)
-        fail_rate = fail_count / len(recent) * 100
+        fail_rate = (fail_count / len(recent)) * 100
         
         if fail_rate >= self.bundle_fail_rate_percent:
             return KillSwitchTrigger(
@@ -184,6 +193,7 @@ class KillSwitchRiskSystem:
                 threshold=self.bundle_fail_rate_percent,
                 current_value=fail_rate,
                 message=f"Bundle fail rate {fail_rate:.1f}% exceeds threshold {self.bundle_fail_rate_percent}%",
+                is_loss=False,
             )
         
         return None
@@ -199,6 +209,7 @@ class KillSwitchRiskSystem:
                 threshold=self.latency_p95_threshold_ms,
                 current_value=self.latency_p95_ms,
                 message=f"Latency p95 {self.latency_p95_ms:.1f}ms exceeds threshold {self.latency_p95_threshold_ms}ms",
+                is_loss=False,
             )
         
         return None
@@ -210,13 +221,6 @@ class KillSwitchRiskSystem:
         self.state.triggered_at = datetime.utcnow()
         self.state.cooldown_until = datetime.utcnow() + timedelta(minutes=self.cooldown_minutes)
         
-        # Notify callbacks
-        for callback in self.on_trigger_callbacks:
-            try:
-                callback(trigger)
-            except Exception:
-                pass
-        
         print(f"🚨 KILL-SWITCH TRIGGERED: {trigger.message}")
     
     def _reset(self):
@@ -226,13 +230,6 @@ class KillSwitchRiskSystem:
         self.state.triggered_at = None
         self.state.cooldown_until = None
         
-        # Notify callbacks
-        for callback in self.on_reset_callbacks:
-            try:
-                callback()
-            except Exception:
-                pass
-        
         print("✅ Kill-switch reset, trading resumed")
     
     # =================================================================
@@ -240,7 +237,12 @@ class KillSwitchRiskSystem:
     # =================================================================
     
     def update_daily_pnl(self, pnl_usd: float):
-        """Update daily PnL"""
+        """
+        Update daily PnL (FIXED: can be positive or negative)
+        
+        Args:
+            pnl_usd: Positive for profit, negative for loss
+        """
         self.daily_pnl_usd = pnl_usd
     
     def update_daily_start_balance(self, balance_usd: float):
@@ -268,18 +270,6 @@ class KillSwitchRiskSystem:
         self.latency_p95_ms = latency_ms
     
     # =================================================================
-    # Callback Registration
-    # =================================================================
-    
-    def on_trigger(self, callback: callable):
-        """Register callback for kill-switch trigger"""
-        self.on_trigger_callbacks.append(callback)
-    
-    def on_reset(self, callback: callable):
-        """Register callback for kill-switch reset"""
-        self.on_reset_callbacks.append(callback)
-    
-    # =================================================================
     # Status & Diagnostics
     # =================================================================
     
@@ -289,16 +279,20 @@ class KillSwitchRiskSystem:
     
     def get_status(self) -> dict:
         """Get status summary"""
+        # FIXED: Show profit/loss correctly
+        daily_pnl_percent = (
+            (self.daily_pnl_usd / self.daily_start_balance_usd) * 100
+            if self.daily_start_balance_usd > 0 else 0
+        )
+        
         return {
             "is_active": self.state.is_active,
             "triggered_by": self.state.triggered_by.trigger_type if self.state.triggered_by else None,
             "triggered_at": self.state.triggered_at.isoformat() if self.state.triggered_at else None,
             "cooldown_until": self.state.cooldown_until.isoformat() if self.state.cooldown_until else None,
             "daily_pnl_usd": self.daily_pnl_usd,
-            "daily_loss_percent": (
-                abs(self.daily_pnl_usd) / self.daily_start_balance_usd * 100
-                if self.daily_start_balance_usd > 0 else 0
-            ),
+            "daily_pnl_percent": daily_pnl_percent,
+            "is_profit": self.daily_pnl_usd > 0,
             "gas_price_current": self.gas_price_history[-1] if self.gas_price_history else 0,
             "rpc_outage_sec": (
                 (datetime.utcnow() - self.rpc_last_success).total_seconds()

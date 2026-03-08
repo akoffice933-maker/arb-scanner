@@ -399,7 +399,7 @@ python -m core.liquidity_graph
 
 ## 🗺️ Development Roadmap
 
-### Phase 1: Monitoring ✅
+### Phase 1: Monitoring ✅ (Complete)
 
 - [x] Basic scanning (~2 scans/sec)
 - [x] Multi-RPC failover
@@ -411,22 +411,37 @@ python -m core.liquidity_graph
 - [x] CI/CD with GitHub Actions
 - [x] Docker support
 
-### Phase 2: Execution (Alpha) 🚧
+### Phase 2: Execution (Alpha) 🚧 (In Progress)
 
 - [x] Liquidity Graph Engine
 - [x] Opportunity Scoring Engine
 - [x] Kill-Switch Risk System
 - [x] Comprehensive configuration
+- [ ] Executive bot (Execution Engine)
+- [ ] Jupiter Aggregator support
+- [ ] Route optimization
+- [ ] Backtesting framework
+- [ ] Execution simulation
 - [ ] Strategy Layer (triangular, cross-DEX, backrun)
 - [ ] Capital Allocation Engine
 - [ ] Opportunity Queue + Scheduler
 - [ ] Portfolio Manager
-- [ ] Execution Engine (Jito Bundles, Flashbots)
 - [ ] MEV Competition Estimator
 - [ ] Tip Bidding Optimizer
 - [ ] Rust core migration
 - [ ] Historical Alpha Analysis
 - [ ] Advanced Telemetry
+
+### Phase 3: Expansion 📋 (Planned)
+
+- [ ] Ethereum support
+- [ ] Arbitrum support
+- [ ] Flashbots integration (Base)
+- [ ] Web dashboard (React)
+- [ ] REST API (FastAPI)
+- [ ] Multi-region deployment
+- [ ] Advanced ML predictions
+- [ ] Cross-chain bridges (Wormhole)
 
 ### Timeline
 
@@ -435,10 +450,10 @@ python -m core.liquidity_graph
 | **Phase 1** | 4 weeks | ✅ Complete |
 | **Phase 2 (Core)** | 8–10 weeks | 🚧 In Progress |
 | **Phase 2 (Execution)** | 8–10 weeks | 📋 Planned |
-| **Phase 2 (Rust)** | 6–8 weeks | 📋 Planned |
-| **Testing & Beta** | 4 weeks | 📋 Planned |
+| **Phase 2 (Testing)** | 4 weeks | 📋 Planned |
+| **Phase 3 (Expansion)** | 12–16 weeks | 📋 Planned |
 
-**Total Estimated:** 26–32 weeks (6–8 months)
+**Total Estimated:** 36–44 weeks (8–10 months)
 
 ---
 

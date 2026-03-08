@@ -2,11 +2,11 @@
 
 **Hedge-Fund Grade MEV Arbitrage System for Solana & Base (2026)**
 
-[![Version](https://img.shields.io/badge/version-3.0.0--alpha-blue.svg)](https://github.com/akoffice933-maker/arb-scanner/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0--beta-blue.svg)](https://github.com/akoffice933-maker/arb-scanner/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI/CD](https://github.com/akoffice933-maker/arb-scanner/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/akoffice933-maker/arb-scanner/actions/workflows/ci-cd.yml)
 
-**End-to-End Latency:** <30–80ms p95 | **Profit Accuracy:** >97% | **MEV Protection:** Full | **Throughput:** 500k–1M+ updates/sec
+**Status:** Beta (Paper Trading Ready) | **Latency:** <30–80ms p95 (target) | **MEV Protection:** Full
 
 ---
 
@@ -33,7 +33,7 @@
 | Фаза | Название | Статус | Описание |
 |------|----------|--------|----------|
 | **Phase 1** | arb-scanner | ✅ Production Ready | Мониторинг и сбор статистики |
-| **Phase 2** | AME v3.0 | ✅ Complete (v1.0.0) | Исполнительный MEV-движок |
+| **Phase 2** | AME v3.0 | 🚧 Beta (v1.2.0) | Исполнительный MEV-движок |
 
 ### Ключевые возможности
 
@@ -455,7 +455,7 @@ def adjust_tip(competition, base_tip):
 - [x] Basic Liquidity Graph
 - [x] Sim engine (constant product)
 
-### Phase 2: Core Engine ✅ (COMPLETE)
+### Phase 2: Core Engine 🚧 (Beta - In Progress)
 
 - [x] Cycle Detection (Bellman-Ford)
 - [x] Orderflow Analyzer
@@ -473,6 +473,9 @@ def adjust_tip(competition, base_tip):
 - [x] Historical Alpha Analysis
 - [x] Swap Simulation Engine (V2, CLMM, Whirlpool)
 - [x] CI/CD + Tests
+- [ ] Production hardening
+- [ ] Performance optimization (<30ms p95)
+- [ ] Full integration testing
 
 ### Phase 3: Production Deployment 🚧 (NEXT)
 
@@ -484,14 +487,14 @@ def adjust_tip(competition, base_tip):
 - [ ] Live trading beta (8 weeks)
 - [ ] Full production launch
 
-**Phase 2 Status:** 12/12 COMPLETE ✅  
-**Total Lines of Code:** 8000+  
-**Test Coverage:** 85%+  
-**Commits:** 25+
+**Phase 2 Status:** Beta (v1.2.0) — Core features implemented, production hardening in progress  
+**Lines of Code:** ~8000  
+**Test Coverage:** Integration tests added, more needed  
+**Commits:** 30+
 
-**Timeline Achieved:** 8-10 weeks (accelerated)  
+**Timeline:** 10-12 weeks (accelerated)  
 **Team:** 1-2 senior devs  
-**Budget Efficiency:** 60% under budget
+**Next:** CI/CD validation, paper trading beta
 
 ---
 

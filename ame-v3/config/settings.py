@@ -3,7 +3,13 @@ AME v3.0 Configuration
 
 Hedge-fund grade settings for MEV arbitrage system.
 """
-from pydantic import BaseSettings
+try:
+    # Pydantic v2
+    from pydantic_settings import BaseSettings
+except ImportError:
+    # Pydantic v1 fallback
+    from pydantic import BaseSettings
+
 from typing import List, Optional, Dict
 import os
 
